@@ -5,6 +5,7 @@ Language Features:
 
 Compiler Features:
  * EWasm: Remove EWasm backend.
+ * Optimizer: Introduced an optimized variable assignment map to improve the performance of Yul optimizer steps that rely on data flow analysis.
  * Parser: Introduce ``pragma experimental solidity``, which will enable an experimental language mode that in particular has no stability guarantees between non-breaking releases and is not suited for production use.
 
 
