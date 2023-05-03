@@ -460,6 +460,7 @@ void CommandLineParser::parseOutputSelection()
 		);
 		static set<string> const assemblerModeOutputs = {
 			CompilerOutputs::componentName(&CompilerOutputs::asm_),
+			CompilerOutputs::componentName(&CompilerOutputs::asmJson),
 			CompilerOutputs::componentName(&CompilerOutputs::binary),
 			CompilerOutputs::componentName(&CompilerOutputs::irOptimized)
 		};
@@ -1178,7 +1179,6 @@ void CommandLineParser::processArgs()
 			// TODO: The list is not complete. Add more.
 			g_strOutputDir,
 			g_strGas,
-			g_strCombinedJson,
 			g_strOptimizeYul,
 			g_strNoOptimizeYul,
 		};
