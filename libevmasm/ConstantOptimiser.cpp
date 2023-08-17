@@ -153,21 +153,17 @@ AssemblyItems CodeCopyMethod::execute(Assembly& _assembly) const
 {
 	bytes data = toBigEndian(m_value);
 	assertThrow(data.size() == 32, OptimizerException, "Invalid number encoding.");
-	AssemblyItems actualCopyRoutine = copyRoutine();
-	if (m_params.evmVersion.hasPush0())
-		actualCopyRoutine[3] = _assembly.newData(data);
-	else
-		actualCopyRoutine[4] = _assembly.newData(data);
-	return actualCopyRoutine;
+	AssemblyItem newPushData = _assembly.newData(data);
+	return copyRoutine(&newPushData);
 }
 
-AssemblyItems const& CodeCopyMethod::copyRoutine() const
+AssemblyItems CodeCopyMethod::copyRoutine(AssemblyItem* _pushData) const
 {
 	// PUSH0 is cheaper than PUSHn/DUP/SWAP.
 	if (m_params.evmVersion.hasPush0())
 	{
 		// This costs ~29 gas.
-		AssemblyItems static copyRoutine{
+		AssemblyItems copyRoutine{
 			// back up memory
 			// mload(0)
 			u256(0),
@@ -175,7 +171,7 @@ AssemblyItems const& CodeCopyMethod::copyRoutine() const
 
 			// codecopy(0, <offset>, 32)
 			u256(32),
-			AssemblyItem(PushData, u256(1) << 16), // replaced above in actualCopyRoutine[3]
+			(_pushData ? *_pushData : AssemblyItem(PushData, u256(1) << 16)),
 			u256(0),
 			Instruction::CODECOPY,
 
@@ -194,7 +190,7 @@ AssemblyItems const& CodeCopyMethod::copyRoutine() const
 	else
 	{
 		// This costs ~33 gas.
-		AssemblyItems static copyRoutine{
+		AssemblyItems copyRoutine{
 			// constant to be reused 3+ times
 			u256(0),
 
@@ -205,7 +201,7 @@ AssemblyItems const& CodeCopyMethod::copyRoutine() const
 
 			// codecopy(0, <offset>, 32)
 			u256(32),
-			AssemblyItem(PushData, u256(1) << 16), // replaced above in actualCopyRoutine[4]
+			(_pushData ? *_pushData : AssemblyItem(PushData, u256(1) << 16)),
 			Instruction::DUP4,
 			Instruction::CODECOPY,
 
