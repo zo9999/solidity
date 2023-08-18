@@ -9,7 +9,7 @@ contract c {
 // EVMVersion: >=byzantium
 // ----
 // (): 1, 2, 3, 4, 5 ->
-// gas irOptimized: 155131
+// gas irOptimized: 155128
 // gas legacy: 155473
 // gas legacyOptimized: 155298
 // checkIfDataIsEmpty() -> false
