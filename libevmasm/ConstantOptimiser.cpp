@@ -159,6 +159,11 @@ AssemblyItems CodeCopyMethod::execute(Assembly& _assembly) const
 
 AssemblyItems CodeCopyMethod::copyRoutine(AssemblyItem* _pushData) const
 {
+	if (_pushData)
+		assertThrow(_pushData->type() == PushData, OptimizerException, "Invalid Assembly Item.");
+
+	AssemblyItem dataUsed = _pushData ? *_pushData : AssemblyItem(PushData, u256(1) << 16);
+
 	// PUSH0 is cheaper than PUSHn/DUP/SWAP.
 	if (m_params.evmVersion.hasPush0())
 	{
@@ -171,7 +176,7 @@ AssemblyItems CodeCopyMethod::copyRoutine(AssemblyItem* _pushData) const
 
 			// codecopy(0, <offset>, 32)
 			u256(32),
-			(_pushData ? *_pushData : AssemblyItem(PushData, u256(1) << 16)),
+			dataUsed,
 			u256(0),
 			Instruction::CODECOPY,
 
@@ -201,7 +206,7 @@ AssemblyItems CodeCopyMethod::copyRoutine(AssemblyItem* _pushData) const
 
 			// codecopy(0, <offset>, 32)
 			u256(32),
-			(_pushData ? *_pushData : AssemblyItem(PushData, u256(1) << 16)),
+			dataUsed,
 			Instruction::DUP4,
 			Instruction::CODECOPY,
 
