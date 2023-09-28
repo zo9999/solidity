@@ -19,6 +19,8 @@
 #pragma once
 
 #include <libsolidity/experimental/codegen/IRGenerationContext.h>
+#include <libsolidity/experimental/codegen/IRVariable.h>
+
 #include <libsolidity/ast/ASTVisitor.h>
 
 #include <functional>
@@ -34,6 +36,13 @@ public:
 	IRGeneratorForStatements(IRGenerationContext& _context): m_context(_context) {}
 
 	std::string generate(ASTNode const& _node);
+
+	static std::size_t stackSize(IRGenerationContext, Type)
+	{
+		// TODO
+		return 1;
+	}
+
 private:
 	bool visit(ExpressionStatement const& _expressionStatement) override;
 	bool visit(Block const& _block) override;
@@ -54,6 +63,15 @@ private:
 	void endVisit(Return const& _return) override;
 	/// Default visit will reject all AST nodes that are not explicitly supported.
 	bool visitNode(ASTNode const& _node) override;
+
+	void declareAssign(IRVariable const& _var, IRVariable const& _value, bool _declare);
+	/// Defines @a _var using the value of @a _value. It declares and assign the variable.
+	void define(IRVariable const& _var, IRVariable const& _value) { declareAssign(_var, _value, true); }
+	/// Assigns @a _var to the value of @a _value. It does not declare the variable.
+	void assign(IRVariable const& _var, IRVariable const& _value) { declareAssign(_var, _value, false); }
+	/// Declares variable @a _var.
+	void declare(IRVariable const& _var);
+
 	IRGenerationContext& m_context;
 	std::stringstream m_code;
 	enum class Builtins
@@ -63,6 +81,13 @@ private:
 		ToBool
 	};
 	std::map<Expression const*, std::variant<Declaration const*, Builtins>> m_expressionDeclaration;
+
+	template<typename IRVariableType>
+	IRVariable var(IRVariableType const& _var) const
+	{
+		return IRVariable(_var, type(_var), stackSize(m_context, type(_var)));
+	}
+
 	Type type(ASTNode const& _node) const;
 
 	FunctionDefinition const& resolveTypeClassFunction(TypeClass _class, std::string _name, Type _type);
