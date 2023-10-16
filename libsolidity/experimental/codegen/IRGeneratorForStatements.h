@@ -20,6 +20,8 @@
 
 #include <libsolidity/experimental/codegen/IRGenerationContext.h>
 #include <libsolidity/experimental/codegen/IRVariable.h>
+#include <libsolidity/experimental/ast/TypeSystemHelper.h>
+#include <libsolidity/experimental/analysis/TypeInference.h>
 
 #include <libsolidity/ast/ASTVisitor.h>
 
@@ -37,10 +39,58 @@ public:
 
 	std::string generate(ASTNode const& _node);
 
-	static std::size_t stackSize(IRGenerationContext, Type)
+	static std::size_t stackSize(IRGenerationContext const& _context, Type _type)
 	{
-		// TODO
-		return 1;
+		TypeSystemHelpers helper{_context.analysis.typeSystem()};
+		_type = _context.env->resolve(_type);
+		solAssert(std::holds_alternative<TypeConstant>(_type), "No monomorphized type.");
+
+		// type -> # stack slots
+		// unit, itself -> 0
+		// void, literals(integer), typeFunction -> error (maybe generate a revert)
+		// word, bool, function -> 1
+		// pair -> sum(stackSize(args))
+		// user-defined -> stackSize(underlying type)
+		TypeConstant typeConstant = std::get<TypeConstant>(_type);
+		if (helper.isPrimitiveType(_type, PrimitiveType::Unit) ||
+			helper.isPrimitiveType(_type, PrimitiveType::Itself))
+			return 0;
+		else if (helper.isPrimitiveType(_type, PrimitiveType::Bool) || helper.isPrimitiveType(_type, PrimitiveType::Word))
+		{
+			solAssert(typeConstant.arguments.empty(), "Primitive type Bool or Word should have no arguments.");
+			return 1;
+		}
+		else if (helper.isFunctionType(_type))
+			return 1;
+		else if (
+			helper.isPrimitiveType(_type, PrimitiveType::Integer) ||
+			helper.isPrimitiveType(_type, PrimitiveType::Void) ||
+			helper.isPrimitiveType(_type, PrimitiveType::TypeFunction))
+			solThrow(langutil::CompilerError, "Primitive type Void, Unit or TypeFunction do not have stack slot"); // FIXME: proper error
+		else if (helper.isPrimitiveType(_type, PrimitiveType::Pair))
+		{
+			solAssert(typeConstant.arguments.size() == 2);
+			return stackSize(_context, typeConstant.arguments.front()) + stackSize(_context, typeConstant.arguments.back());
+		}
+		else
+		{
+			Type underlyingType = _context.analysis.annotation<TypeInference>().underlyingTypes.at(typeConstant.constructor);
+			if (helper.isTypeConstant(underlyingType))
+				return stackSize(_context, underlyingType);
+
+			TypeEnvironment env = _context.env->clone();
+			Type genericFunctionType = helper.typeFunctionType(
+				helper.tupleType(typeConstant.arguments),
+				env.typeSystem().freshTypeVariable({}));
+			solAssert(env.unify(genericFunctionType, underlyingType).empty());
+
+			Type resolvedType = env.resolveRecursive(genericFunctionType);
+			auto [argumentType, resultType] = helper.destTypeFunctionType(resolvedType);
+			return stackSize(_context, resultType);
+		}
+
+		//TODO: sum types
+		return 0;
 	}
 
 private:

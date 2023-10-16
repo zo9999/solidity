@@ -119,7 +119,7 @@ bool IRGeneratorForStatements::visit(TupleExpression const& _tupleExpression)
 	{
 		solUnimplementedAssert(component);
 		component->accept(*this);
-		components.emplace_back(var(*component).name());
+		components.emplace_back(var(*component).commaSeparatedList());
 	}
 
 	solUnimplementedAssert(false, "No support for tuples.");
@@ -205,7 +205,6 @@ void IRGeneratorForStatements::endVisit(BinaryOperation const& _binaryOperation)
 	// TODO: get around resolveRecursive by passing the environment further down?
 	functionType = m_context.env->resolveRecursive(functionType);
 	m_context.enqueueFunctionDefinition(&functionDefinition, functionType);
-	// TODO: account for return stack size
 	m_code << "let " << var(_binaryOperation).commaSeparatedList() <<
 		" := " << IRNames::function(*m_context.env, functionDefinition, functionType) << "(" <<
 		var(_binaryOperation.leftExpression()).commaSeparatedList() <<
@@ -351,9 +350,9 @@ void IRGeneratorForStatements::endVisit(FunctionCall const& _functionCall)
 	auto const& arguments = _functionCall.arguments();
 	if (arguments.size() > 1)
 		for (auto arg: arguments | ranges::views::drop_last(1))
-			m_code << var(*arg).name() << ", ";
+			m_code << var(*arg).commaSeparatedList();
 	if (!arguments.empty())
-		m_code << var(*arguments.back()).name();
+		m_code << var(*arguments.back()).commaSeparatedListPrefixed();
 	m_code << ")\n";
 }
 
