@@ -74,7 +74,8 @@ public:
 		}
 		else
 		{
-			Type underlyingType = _context.analysis.annotation<TypeInference>().underlyingTypes.at(typeConstant.constructor);
+			Type underlyingType = _context.env->resolve(
+				_context.analysis.annotation<TypeInference>().underlyingTypes.at(typeConstant.constructor));
 			if (helper.isTypeConstant(underlyingType))
 				return stackSize(_context, underlyingType);
 
