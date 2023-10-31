@@ -65,7 +65,7 @@ struct ImmediateDominatorTest
 		soltestAssert(!_vertices.empty() && !_edges.empty());
 
 		for (std::string name: _vertices)
-			vertices.insert(make_pair(name, std::make_shared<Vertex>(Vertex{name, std::vector<std::shared_ptr<Vertex>>{}})));
+			vertices.emplace(name, std::make_shared<Vertex>(Vertex{name, {}}));
 
 		soltestAssert(vertices.size() == _vertices.size());
 
@@ -74,9 +74,9 @@ struct ImmediateDominatorTest
 
 		entry = vertices[_vertices[0]];
 		numVertices = _vertices.size();
-		expectedIdom = _expectedIdom;
-		expectedDFSIndices = _expectedDFSIndices;
-		expectedDominatorTree = _expectedDominatorTree;
+		expectedIdom = std::move(_expectedIdom);
+		expectedDFSIndices = std::move(_expectedDFSIndices);
+		expectedDominatorTree = std::move(_expectedDominatorTree);
 	}
 
 	size_t numVertices = 0;
