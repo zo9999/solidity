@@ -205,8 +205,10 @@ void IRGeneratorForStatements::endVisit(BinaryOperation const& _binaryOperation)
 	// TODO: get around resolveRecursive by passing the environment further down?
 	functionType = m_context.env->resolveRecursive(functionType);
 	m_context.enqueueFunctionDefinition(&functionDefinition, functionType);
-	m_code << "let " << var(_binaryOperation).commaSeparatedList() <<
-		" := " << IRNames::function(*m_context.env, functionDefinition, functionType) << "(" <<
+	std::string functionDeclaration = var(_binaryOperation).commaSeparatedList();
+	if (!functionDeclaration.empty())
+		m_code << "let " << functionDeclaration << " := ";
+	m_code << IRNames::function(*m_context.env, functionDefinition, functionType) << "(" <<
 		var(_binaryOperation.leftExpression()).commaSeparatedList() <<
 		var(_binaryOperation.rightExpression()).commaSeparatedListPrefixed() << ")\n";
 }
@@ -344,15 +346,19 @@ void IRGeneratorForStatements::endVisit(FunctionCall const& _functionCall)
 	m_context.enqueueFunctionDefinition(functionDefinition, functionType);
 	// TODO: account for return stack size
 	solAssert(!functionDefinition->returnParameterList());
-	if (functionDefinition->experimentalReturnExpression())
+	std::string functionDeclaration = var(_functionCall).commaSeparatedList();
+	if (!functionDeclaration.empty())
 		m_code << "let " << var(_functionCall).commaSeparatedList() << " := ";
 	m_code << IRNames::function(*m_context.env, *functionDefinition, functionType) << "(";
 	auto const& arguments = _functionCall.arguments();
-	if (arguments.size() > 1)
+	if (arguments.size() == 1)
+		m_code << var(*arguments.back()).commaSeparatedList();
+	else if (arguments.size() > 1)
+	{
 		for (auto arg: arguments | ranges::views::drop_last(1))
 			m_code << var(*arg).commaSeparatedList();
-	if (!arguments.empty())
 		m_code << var(*arguments.back()).commaSeparatedListPrefixed();
+	}
 	m_code << ")\n";
 }
 

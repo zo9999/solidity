@@ -46,13 +46,12 @@ IRVariable::IRVariable(Expression const& _expression, Type _type, size_t _stackS
 std::vector<std::string> IRVariable::stackSlots() const
 {
 	std::vector<std::string> result;
-	if (m_stackSize > 1)
-	{
+	result.reserve(m_stackSize);
+	if (m_stackSize == 1)
+		result.emplace_back(m_baseName);
+	else
 		for (size_t i = 0; i < m_stackSize; ++i)
 			result.emplace_back(suffixedName(std::to_string(i)));
-		return result;
-	}
-	result.emplace_back(m_baseName);
 	return result;
 }
 
