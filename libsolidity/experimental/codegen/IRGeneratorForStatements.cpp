@@ -201,16 +201,31 @@ void IRGeneratorForStatements::endVisit(BinaryOperation const& _binaryOperation)
 	Type functionType = helper.functionType(helper.tupleType({leftType, rightType}), resultType);
 	auto [typeClass, memberName] = m_context.analysis.annotation<TypeInference>().operators.at(_binaryOperation.getOperator());
 	auto const& functionDefinition = resolveTypeClassFunction(typeClass, memberName, functionType);
-	// TODO: deduplicate with FunctionCall
-	// TODO: get around resolveRecursive by passing the environment further down?
-	functionType = m_context.env->resolveRecursive(functionType);
-	m_context.enqueueFunctionDefinition(&functionDefinition, functionType);
 	std::string functionDeclaration = var(_binaryOperation).commaSeparatedList();
 	if (!functionDeclaration.empty())
 		m_code << "let " << functionDeclaration << " := ";
-	m_code << IRNames::function(*m_context.env, functionDefinition, functionType) << "(" <<
-		var(_binaryOperation.leftExpression()).commaSeparatedList() <<
-		var(_binaryOperation.rightExpression()).commaSeparatedListPrefixed() << ")\n";
+	m_code << buildFunctionCall(functionDefinition, functionType, _binaryOperation.arguments());
+}
+
+std::string IRGeneratorForStatements::buildFunctionCall(FunctionDefinition const& _functionDefinition, Type _functionType, std::vector<ASTPointer<Expression const>> const& _arguments)
+{
+	// Ensure type is resolved
+	// TODO: get around resolveRecursive by passing the environment further down?
+	Type resolvedFunctionType = m_context.env->resolveRecursive(_functionType);
+	m_context.enqueueFunctionDefinition(&_functionDefinition, resolvedFunctionType);
+
+	std::ostringstream output;
+	output << IRNames::function(*m_context.env, _functionDefinition, resolvedFunctionType) << "(";
+	if (_arguments.size() == 1)
+		output << var(*_arguments.back()).commaSeparatedList();
+	else if (_arguments.size() > 1)
+	{
+		for (auto arg: _arguments | ranges::views::drop_last(1))
+			output << var(*arg).commaSeparatedList();
+		output << var(*_arguments.back()).commaSeparatedListPrefixed();
+	}
+	output << ")\n";
+	return output.str();
 }
 
 void IRGeneratorForStatements::declareAssign(IRVariable const& _lhs, IRVariable const& _rhs, bool _declare)
@@ -341,25 +356,12 @@ void IRGeneratorForStatements::endVisit(FunctionCall const& _functionCall)
 	}
 	FunctionDefinition const* functionDefinition = dynamic_cast<FunctionDefinition const*>(std::get<Declaration const*>(declaration));
 	solAssert(functionDefinition);
-	// TODO: get around resolveRecursive by passing the environment further down?
-	functionType = m_context.env->resolveRecursive(functionType);
-	m_context.enqueueFunctionDefinition(functionDefinition, functionType);
 	// TODO: account for return stack size
 	solAssert(!functionDefinition->returnParameterList());
 	std::string functionDeclaration = var(_functionCall).commaSeparatedList();
 	if (!functionDeclaration.empty())
 		m_code << "let " << var(_functionCall).commaSeparatedList() << " := ";
-	m_code << IRNames::function(*m_context.env, *functionDefinition, functionType) << "(";
-	auto const& arguments = _functionCall.arguments();
-	if (arguments.size() == 1)
-		m_code << var(*arguments.back()).commaSeparatedList();
-	else if (arguments.size() > 1)
-	{
-		for (auto arg: arguments | ranges::views::drop_last(1))
-			m_code << var(*arg).commaSeparatedList();
-		m_code << var(*arguments.back()).commaSeparatedListPrefixed();
-	}
-	m_code << ")\n";
+	m_code << buildFunctionCall(*functionDefinition, functionType, _functionCall.arguments());
 }
 
 bool IRGeneratorForStatements::visit(FunctionCall const&)

@@ -133,6 +133,8 @@ private:
 	};
 	std::map<Expression const*, std::variant<Declaration const*, Builtins>> m_expressionDeclaration;
 
+	std::string buildFunctionCall(FunctionDefinition const& _functionDefinition, Type _functionType, std::vector<ASTPointer<Expression const>> const& _arguments);
+
 	template<typename IRVariableType>
 	IRVariable var(IRVariableType const& _var) const
 	{
