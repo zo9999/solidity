@@ -115,11 +115,10 @@ private:
 	/// Default visit will reject all AST nodes that are not explicitly supported.
 	bool visitNode(ASTNode const& _node) override;
 
-	void declareAssign(IRVariable const& _var, IRVariable const& _value, bool _declare);
 	/// Defines @a _var using the value of @a _value. It declares and assign the variable.
-	void define(IRVariable const& _var, IRVariable const& _value) { declareAssign(_var, _value, true); }
+	void define(IRVariable const& _var, IRVariable const& _value) { assign(_var, _value, true); }
 	/// Assigns @a _var to the value of @a _value. It does not declare the variable.
-	void assign(IRVariable const& _var, IRVariable const& _value) { declareAssign(_var, _value, false); }
+	void assign(IRVariable const& _var, IRVariable const& _value, bool _declare = false);
 	/// Declares variable @a _var.
 	void declare(IRVariable const& _var);
 

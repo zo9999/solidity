@@ -228,16 +228,16 @@ std::string IRGeneratorForStatements::buildFunctionCall(FunctionDefinition const
 	return output.str();
 }
 
-void IRGeneratorForStatements::declareAssign(IRVariable const& _lhs, IRVariable const& _rhs, bool _declare)
+void IRGeneratorForStatements::assign(IRVariable const& _lhs, IRVariable const& _rhs, bool _declare)
 {
 	solAssert(IRGeneratorForStatements::stackSize(m_context, _lhs.type()) == IRGeneratorForStatements::stackSize(m_context, _rhs.type()));
 	// TODO: conversions for abs and rep for user-defined types as no-ops
 	if (IRGeneratorForStatements::stackSize(m_context, _lhs.type()) == 1)
-		m_code << (_declare ? "let ": "") << _lhs.name() << " := " << _rhs.name() << "\n";
+		m_code << (_declare ? "let " : "") <<  _lhs.name() << " := " << _rhs.name() << "\n";
 	else
 	{
 		for (size_t i = 0; i < _lhs.stackSize(); ++i)
-			m_code << (_declare ? "let ": "") << _lhs.stackSlots()[i] << " := " << _rhs.stackSlots()[i] << "\n";
+			m_code << (_declare ? "let " : "") << _lhs.stackSlots()[i] << " := " << _rhs.stackSlots()[i] << "\n";
 	}
 }
 
