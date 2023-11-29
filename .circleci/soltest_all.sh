@@ -31,7 +31,11 @@ REPODIR="$(realpath "$(dirname "$0")"/..)"
 # shellcheck source=scripts/common.sh
 source "${REPODIR}/scripts/common.sh"
 
-EVM_VALUES=(homestead byzantium constantinople petersburg istanbul berlin london paris shanghai)
+DEFAULT_EVM_VALUES=(constantinople petersburg istanbul berlin london paris shanghai)
+# Deserialize the EVM_VALUES array from the environment variable if provided or
+# set EVM_VALUES to the default values.
+IFS=" " read -ra EVM_VALUES <<< "${EVM_VALUES:-${DEFAULT_EVM_VALUES[@]}}"
+
 DEFAULT_EVM=shanghai
 [[ " ${EVM_VALUES[*]} " =~ $DEFAULT_EVM ]]
 OPTIMIZE_VALUES=(0 1)
