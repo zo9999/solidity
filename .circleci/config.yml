@@ -1185,8 +1185,8 @@ jobs:
       - soltest_all
 
   t_ubu_soltest_deprecated_evm_versions: &t_ubu_soltest_deprecated_evm_versions
-    <<: *base_ubuntu2204_large
-    parallelism: 50
+    <<: *base_ubuntu2204
+    parallelism: 10
     steps:
       - checkout
       - attach_workspace:
