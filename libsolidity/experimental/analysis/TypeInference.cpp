@@ -19,6 +19,7 @@
 
 #include <libsolidity/experimental/analysis/TypeInference.h>
 
+#include <libsolidity/experimental/analysis/InstantiationRegistration.h>
 #include <libsolidity/experimental/analysis/TypeClassRegistration.h>
 #include <libsolidity/experimental/analysis/TypeRegistration.h>
 #include <libsolidity/experimental/analysis/Analysis.h>
@@ -218,9 +219,6 @@ bool TypeInference::visit(TypeClassDefinition const& _typeClassDefinition)
 	}
 
 	unify(type(_typeClassDefinition.typeVariable()), m_typeSystem.freshTypeVariable({{typeClass}}), _typeClassDefinition.location());
-	for (auto instantiation: m_analysis.annotation<TypeRegistration>(_typeClassDefinition).instantiations | ranges::views::values)
-		// TODO: recursion-safety? Order of instantiation?
-		instantiation->accept(*this);
 
 	return false;
 }
@@ -602,64 +600,44 @@ bool TypeInference::visit(TypeClassInstantiation const& _typeClassInstantiation)
 	auto& instantiationAnnotation = annotation(_typeClassInstantiation);
 	if (instantiationAnnotation.type)
 		return false;
+
 	instantiationAnnotation.type = m_voidType;
-	std::optional<TypeClass> typeClass = std::visit(util::GenericVisitor{
-		[&](ASTPointer<IdentifierPath> _typeClassName) -> std::optional<TypeClass> {
-			if (auto const* typeClassDefinition = dynamic_cast<TypeClassDefinition const*>(_typeClassName->annotation().referencedDeclaration))
-			{
-				// visiting the type class will re-visit this instantiation
-				typeClassDefinition->accept(*this);
-				// TODO: more error handling? Should be covered by the visit above.
-				solAssert(m_analysis.annotation<TypeClassRegistration>(*typeClassDefinition).typeClass.has_value());
-				return m_analysis.annotation<TypeClassRegistration>(*typeClassDefinition).typeClass.value();
-			}
-			else
-			{
-				m_errorReporter.typeError(9817_error, _typeClassInstantiation.typeClass().location(), "Expected type class.");
-				return std::nullopt;
-			}
-		},
-		[&](Token _token) -> std::optional<TypeClass> {
-			auto const& classRegistrationAnnotation = m_analysis.annotation<TypeClassRegistration>();
-			if (auto builtinClass = builtinClassFromToken(_token))
-				if (auto typeClass = util::valueOrNullptr(classRegistrationAnnotation.builtinClasses, *builtinClass))
-					return *typeClass;
-			m_errorReporter.typeError(2658_error, _typeClassInstantiation.location(), "Invalid type class name.");
-			return std::nullopt;
-		}
-	}, _typeClassInstantiation.typeClass().name());
-	if (!typeClass)
-		return false;
 
-	// TODO: _typeClassInstantiation.typeConstructor().accept(*this); ?
-	auto typeConstructor = m_analysis.annotation<TypeRegistration>(_typeClassInstantiation.typeConstructor()).typeConstructor;
-	if (!typeConstructor)
-	{
-		m_errorReporter.typeError(2138_error, _typeClassInstantiation.typeConstructor().location(), "Invalid type constructor.");
-		return false;
-	}
+	auto const& instantiationRegistrationAnnotation = m_analysis.annotation<InstantiationRegistration>(_typeClassInstantiation);
+	auto const& classNameAnnotation = m_analysis.annotation<InstantiationRegistration>(_typeClassInstantiation.typeClass());
 
-	std::vector<Type> arguments;
-	Arity arity{
-		{},
-		*typeClass
-	};
+	solAssert(instantiationRegistrationAnnotation.instanceType.has_value());
+	Type instanceType = *instantiationRegistrationAnnotation.instanceType;
 
+	TypeClassDefinition const* typeClassDefinition = classNameAnnotation.typeClassDefinition;
+	if (typeClassDefinition)
+		// We may have not visited the type class definition yet. Do it just in case.
+		// TODO: Type classes should be processed in a separate pass to avoid this out-of-order visitation.
+		typeClassDefinition->accept(*this);
+
+	solAssert(classNameAnnotation.typeClass.has_value());
+	TypeClass typeClass = *classNameAnnotation.typeClass;
+
+	solAssert(m_analysis.annotation<TypeRegistration>(_typeClassInstantiation.typeConstructor()).typeConstructor.has_value());
+	TypeConstructor typeConstructor = *m_analysis.annotation<TypeRegistration>(_typeClassInstantiation.typeConstructor()).typeConstructor;
+
+	// NOTE: Not visiting the type constructor
+
+	if (_typeClassInstantiation.argumentSorts())
 	{
 		ScopedSaveAndRestore expressionContext{m_expressionContext, ExpressionContext::Type};
-		if (_typeClassInstantiation.argumentSorts())
-		{
-			_typeClassInstantiation.argumentSorts()->accept(*this);
-			auto& argumentSortAnnotation = annotation(*_typeClassInstantiation.argumentSorts());
-			solAssert(argumentSortAnnotation.type);
-			arguments = TypeSystemHelpers{m_typeSystem}.destTupleType(*argumentSortAnnotation.type);
-			arity.argumentSorts = arguments | ranges::views::transform([&](Type _type) {
-				return m_env->sort(_type);
-			}) | ranges::to<std::vector<Sort>>;
-		}
-	}
+		_typeClassInstantiation.argumentSorts()->accept(*this);
 
-	Type instanceType{TypeConstant{*typeConstructor, arguments}};
+		// Visiting arguments assigns them fresh type variables.
+		// Unify with variables we used for them in the instantiation registration pass.
+		auto& argumentSortAnnotation = annotation(*_typeClassInstantiation.argumentSorts());
+		solAssert(argumentSortAnnotation.type);
+		unify(
+			instanceType,
+			Type{TypeConstant{typeConstructor, TypeSystemHelpers{m_typeSystem}.destTupleType(*argumentSortAnnotation.type)}},
+			_typeClassInstantiation.argumentSorts()->location()
+		);
+	}
 
 	std::map<std::string, Type> functionTypes;
 
@@ -672,13 +650,10 @@ bool TypeInference::visit(TypeClassInstantiation const& _typeClassInstantiation)
 			m_errorReporter.typeError(3654_error, subNode->location(), "Duplicate definition of function " + functionDefinition->name() + " during type class instantiation.");
 	}
 
-	if (auto error = m_typeSystem.instantiateClass(instanceType, arity))
-		m_errorReporter.typeError(5094_error, _typeClassInstantiation.location(), *error);
-
-	auto const& classFunctions = annotation().typeClassFunctions.at(*typeClass);
+	auto const& classFunctions = annotation().typeClassFunctions.at(typeClass);
 
 	TypeEnvironment newEnv = m_env->clone();
-	if (!newEnv.unify(m_typeSystem.typeClassVariable(*typeClass), instanceType).empty())
+	if (!newEnv.unify(m_typeSystem.typeClassVariable(typeClass), instanceType).empty())
 	{
 		m_errorReporter.typeError(4686_error, _typeClassInstantiation.location(), "Unification of class and instance variable failed.");
 		return false;
