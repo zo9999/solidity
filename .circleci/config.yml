@@ -373,8 +373,8 @@ commands:
             if test -f ~/b_osx-dependencies-flag
             then
               echo "Dependency flag exists: removing /usr/local and /opt/homebrew directories. These directories will be restored from cache."
-              sudo rm -rf /usr/local
-              sudo rm -rf /opt/homebrew
+              sudo rm -rf /usr/local/*
+              sudo rm -rf /opt/homebrew/*
             else
               echo "Dependency flag didn't exist. Not doing anything."
             fi
