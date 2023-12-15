@@ -58,6 +58,7 @@ then
   brew install wget
   brew install coreutils
   brew install diffutils
+
   # writing to /usr/local/lib need administrative privileges.
   sudo ./scripts/install_obsolete_jsoncpp_1_7_4.sh
 
