@@ -375,8 +375,6 @@ commands:
               echo "Dependency flag exists: removing /usr/local and /opt/homebrew directories. These directories will be restored from cache."
               sudo rm -rf /usr/local/*
               sudo rm -rf /opt/homebrew/*
-              sudo chmod 777 /usr/local
-              sudo chmod 777 /opt/homebrew/
             else
               echo "Dependency flag didn't exist. Not doing anything."
             fi
