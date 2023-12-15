@@ -364,19 +364,45 @@ commands:
 
   install_dependencies_osx:
     steps:
-      - run: sudo chmod -R 777 /usr/local
-      - run: sudo chmod -R 777 /opt/homebrew
+      - restore_cache:
+          keys:
+            - b_osx-dependencies-{{ checksum ".circleci/osx_install_dependencies.sh" }}-flag
+      - run:
+          name: Checking dependency flag
+          command: |
+            if test -f ~/b_osx-dependencies-{{ checksum ".circleci/osx_install_dependencies.sh" }}-flag
+            then
+              echo "Dependency flag exists: removing /usr/local and /opt/homebrew directories. These directories will be restored from cache."
+              sudo rm -rf /usr/local
+              sudo rm -rf /opt/homebrew
+            else
+              echo "Dependency flag didn't exist. Not doing anything."
+            fi
       - restore_cache:
           keys:
             - b_osx-dependencies-{{ checksum ".circleci/osx_install_dependencies.sh" }}
       - run:
           name: Install build dependencies
           command: .circleci/osx_install_dependencies.sh
+      - run:
+          name: Setting dependency flag
+          command: |
+            if test -f /usr/local/lib/libz3.a
+            then
+              echo "/usr/local/lib/libz3.a found: setting dependency flag."
+              touch ~/b_osx-dependencies-{{ checksum ".circleci/osx_install_dependencies.sh" }}-flag
+            else
+              echo "Dependencies not build."
+            fi
       - save_cache:
           key: b_osx-dependencies-{{ checksum ".circleci/osx_install_dependencies.sh" }}
           paths:
             - /usr/local
             - /opt/homebrew
+      - save_cache:
+          key: b_osx-dependencies-{{ checksum ".circleci/osx_install_dependencies.sh" }}-flag
+          paths:
+            - ~/b_osx-dependencies-{{ checksum ".circleci/osx_install_dependencies.sh" }}-flag
 
 defaults:
 
