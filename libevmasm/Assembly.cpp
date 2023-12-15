@@ -484,7 +484,7 @@ Json::Value Assembly::assemblyJSON(std::map<std::string, unsigned> const& _sourc
 			maxSourceIndex = std::max(sourceIndex, maxSourceIndex);
 			jsonSourceList[sourceIndex] = sourceName;
 		}
-		for (unsigned i = 0 ; i < maxSourceIndex; ++i)
+		for (unsigned i = 0; i < maxSourceIndex; ++i)
 			if (jsonSourceList[i] == Json::nullValue)
 				jsonSourceList[i] = "unknown-source-" + std::to_string(i);
 	}
