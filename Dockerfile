@@ -1,10 +1,12 @@
-FROM ubuntu:latest
+FROM fedora:latest
 
-RUN apt-get update && apt-get install -y \
+RUN yum update -y && yum install -y \
+boost-devel \
+cmake \
 clang \
-make \
-libboost-all-dev \
-cmake
+git \
+z3 \
+&& dnf install boost-static
 
 WORKDIR /solidity
 
